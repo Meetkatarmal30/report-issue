@@ -1,0 +1,198 @@
+No code was selected, and the provided text is not code. However, based on the context, I will provide a basic structure for the described system using Python and Flask. This code can be used as a starting point and improved upon.
+
+```python
+from flask import Flask, request, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_mail import Mail, Message
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'secret_key'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 465
+app.config['MAIL_USE_TLS'] = False
+app.config['MAIL_USE_SSL'] = True
+app.config['MAIL_USERNAME'] = 'your_email@gmail.com'
+app.config['MAIL_PASSWORD'] = 'your_password'
+
+db = SQLAlchemy(app)
+login_manager = LoginManager(app)
+mail = Mail(app)
+
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(128), nullable=False)
+    role = db.Column(db.String(64), nullable=False, default='user')
+
+    def set_password(self, password):
+        self.password = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password, password)
+
+class Issue(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(128), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(64), nullable=False)
+    location = db.Column(db.String(128), nullable=False)
+    image_url = db.Column(db.String(128), nullable=False)
+    status = db.Column(db.String(64), nullable=False, default='Pending')
+    votes = db.Column(db.Integer, nullable=False, default=0)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    issue_id = db.Column(db.Integer, db.ForeignKey('issue.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    comment_text = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
+
+class Vote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    issue_id = db.Column(db.Integer, db.ForeignKey('issue.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    vote_type = db.Column(db.String(64), nullable=False)
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+@app.route('/report', methods=['POST'])
+def report_issue():
+    data = request.get_json()
+    issue = Issue(title=data['title'], description=data['description'], category=data['category'], location=data['location'], image_url=data['image_url'], user_id=current_user.id)
+    db.session.add(issue)
+    db.session.commit()
+    return jsonify({'message': 'Issue reported successfully'}), 201
+
+@app.route('/issues', methods=['GET'])
+def get_issues():
+    issues = Issue.query.all()
+    return jsonify([{'id': issue.id, 'title': issue.title, 'description': issue.description, 'category': issue.category, 'location': issue.location, 'image_url': issue.image_url, 'status': issue.status, 'votes': issue.votes, 'user_id': issue.user_id} for issue in issues])
+
+@app.route('/vote/<int:issue_id>', methods=['POST'])
+def vote(issue_id):
+    issue = Issue.query.get(issue_id)
+    if issue:
+        vote = Vote(issue_id=issue_id, user_id=current_user.id, vote_type=request.get_json()['vote_type'])
+        db.session.add(vote)
+        db.session.commit()
+        if request.get_json()['vote_type'] == 'Upvote':
+            issue.votes += 1
+        else:
+            issue.votes -= 1
+        db.session.commit()
+        return jsonify({'message': 'Vote cast successfully'}), 200
+    return jsonify({'message': 'Issue not found'}), 404
+
+@app.route('/comment/<int:issue_id>', methods=['POST'])
+def comment(issue_id):
+    issue = Issue.query.get(issue_id)
+    if issue:
+        comment = Comment(issue_id=issue_id, user_id=current_user.id, comment_text=request.get_json()['comment_text'])
+        db.session.add(comment)
+        db.session.commit()
+        return jsonify({'message': 'Comment added successfully'}), 201
+    return jsonify({'message': 'Issue not found'}), 404
+
+@app.route('/update-status/<int:issue_id>', methods=['PUT'])
+@login_required
+def update_status(issue_id):
+    issue = Issue.query.get(issue_id)
+    if issue:
+        issue.status = request.get_json()['status']
+        db.session.commit()
+        return jsonify({'message': 'Status updated successfully'}), 200
+    return jsonify({'message': 'Issue not found'}), 404
+
+@app.route('/issue/<int:issue_id>', methods=['DELETE'])
+@login_required
+def delete_issue(issue_id):
+    issue = Issue.query.get(issue_id)
+    if issue:
+        db.session.delete(issue)
+        db.session.commit()
+        return jsonify({'message': 'Issue deleted successfully'}), 200
+    return jsonify({'message': 'Issue not found'}), 404
+
+@app.route('/forward-to-government/<int:issue_id>', methods=['POST'])
+@login_required
+def forward_to_government(issue_id):
+    issue = Issue.query.get(issue_id)
+    if issue:
+        msg = Message('Issue forwarded to government', sender='your_email@gmail.com', recipients=['government_email@gmail.com'])
+        msg.body = f'Issue {issue.id} - {issue.title} has been forwarded to the government.'
+        mail.send(msg)
+        issue.status = 'Sent to Government'
+        db.session.commit()
+        return jsonify({'message': 'Issue forwarded to government successfully'}), 200
+    return jsonify({'message': 'Issue not found'}), 404
+
+if __name__ == '__main__':
+    app.run(debug=True)
+```1. Core Features Overview
+Your project allows citizens to report infrastructure issues (e.g., potholes, broken streetlights) with location data. Other users can vote and comment on these issues, while admins can review, update, and escalate them to the government.
+
+🔹 2. Users & Roles
+👤 Regular Users
+Can report issues (title, description, category, location, image).
+Can view all reported issues.
+Can upvote/downvote issues to highlight important problems.
+Can comment on issues to add more details.
+Can see the status of issues (Pending, In Progress, Resolved).
+
+ Admins
+Can view and manage reported issues.
+Can update issue status (Pending → In Progress → Resolved).
+Can delete inappropriate reports/comments.
+Can forward issues to government officials (via email or dashboard).
+Can view analytics (heatmaps, top issues, user engagement data).
+
+Issues Table
+ID	Title	Description	Category	Location	Image URL	Status	Votes	User ID
+1	Pothole	Huge pothole on main road	Road	Lat, Long	img.jpg	Pending	15	1
+3️⃣ Comments Table
+ID	Issue ID	User ID	Comment Text	Timestamp
+1	1	2	"This needs fixing ASAP!"	2025-02-06
+4️⃣ Votes Table
+ID	Issue ID	User ID	Vote Type (Up/Down)
+1	1	3	Upvote
+5️⃣ Admins Table (Optional, if separate from Users)
+ID	Name	Email	Password (hashed)
+1	Admin1	admin@example.com	(hashed)
+
+
+4. User Flow
+👤 A. User Reports an Issue
+The user visits the homepage and sees a "Report Issue" button.
+The user fills out the form (title, description, category, location, image).
+The form sends data to POST /report.
+The server saves the issue in the database with status = "Pending".
+The user sees a confirmation message.
+👀 B. Viewing Reported Issues
+The user/admin visits /issues.
+The backend fetches data from the database (GET /issues).
+The frontend displays a list of issues with details.
+👍 C. Voting on Issues
+The user clicks Upvote/Downvote.
+The frontend sends a request to POST /vote/{issue_id}.
+The backend updates the vote count.
+💬 D. Commenting on Issues
+The user enters a comment.
+The frontend sends a request to POST /comment/{issue_id}.
+The backend stores the comment.
+The comment appears under the issue.
+🛠️ E. Admin Manages Issues
+The admin logs in.
+The admin sees all issues in a dashboard.
+The admin can change issue status (PUT /update-status/{issue_id}).
+The admin can delete spam issues/comments (DELETE /issue/{id}).
+🏛️ F. Forwarding to Government
+The admin clicks "Forward to Government".
+The system emails the details to a government official.
+The issue status updates to "Sent to Government".

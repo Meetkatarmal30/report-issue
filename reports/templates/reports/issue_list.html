@@ -1,0 +1,162 @@
+Certainly! Below is the complete code for the `issue_list.html` file, with the "Recent Issues" section removed. This code includes the map and the buttons for reporting an issue and viewing issues, while maintaining the overall structure and functionality.
+
+### Updated `issue_list.html`
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reported Issues</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 20px;
+        }
+        h2 {
+            color: #003366;
+            text-align: center;
+            background-color: #e0e0e0;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .admin-login {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .admin-login a {
+            color: white;
+            text-decoration: none;
+        }
+        .admin-login a:hover {
+            text-decoration: underline;
+        }
+        #map {
+            height: 500px;
+            width: 100%;
+            margin-top: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            position: relative; /* Make the map container relative for positioning the button */
+        }
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .button {
+            background-color: #003366;
+            color: white;
+            padding: 20px 0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            width: 100%;
+            font-size: 20px;
+            margin: 10px 0;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #002244;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            background: #fff;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        a {
+            text-decoration: none;
+            color: #003366;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .recenter-button {
+            position: absolute; /* Position it absolutely within the map container */
+            bottom: 20px; /* Distance from the bottom */
+            right: 20px; /* Distance from the right */
+            background-color: #fff;
+            border: 2px solid #003366;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.3s;
+            z-index: 1000; /* Ensure it appears in front of the map */
+        }
+        .recenter-button:hover {
+            background-color: #e0e0e0;
+        }
+        .recenter-button span {
+            font-size: 20px; /* Adjust size for the emoji */
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-login">
+        <a href="{% url 'admin_login' %}">Admin Login</a>
+    </div>
+    
+    <div class="container">
+        <h2>Reported Issues</h2>
+        
+        <div id="map">
+            <div class="recenter-button " onclick="recenterMap()">
+                <span>🔄</span>
+            </div>
+        </div> <!-- Map placeholder -->
+
+        <div class="button-container">
+            <button class="button" onclick="location.href='/report/'">Report an Issue</button>
+            <button class="button" onclick="location.href='/issues/'">View Issues</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize the map
+        var map = L.map('map').setView([51.505, -0.09], 13);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        // Function to recenter the map
+        function recenterMap() {
+            map.setView([51.505, -0.09], 13); // Adjust coordinates as needed
+        }
+    </script>
+</body>
+</html>
